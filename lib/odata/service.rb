@@ -42,7 +42,7 @@ module OData
 
     # Returns a list of entities exposed by the service
     def entity_types
-      @entity_types ||= metadata.xpath('//EntityType').collect {|entity| entity.attributes['Name'].value}
+      @entity_types ||= metadata.xpath('//EntityType').collect {|entity| build_entity_type(entity)}
     end
 
     # Returns a hash of EntitySet names keyed to their respective EntityType name
@@ -80,7 +80,7 @@ module OData
         [
             entity_type_name,
             Hash[entity_type_def.xpath('./NavigationProperty').collect do |nav_property_def|
-              relationship_name = nav_property_def.attributes['Relationship'].value
+              relationship_name = nav_property_def.attributes['Type'].value
               relationship_name.gsub!(/^#{namespace}\./, '')
               [
                   nav_property_def.attributes['Name'].value,
@@ -302,6 +302,18 @@ module OData
       end
 
       return [property_name, property]
+    end
+
+    def build_entity_type(entity_type_definition)
+      options = entity_type_definition.attributes.inject({}) do |results, (key, value)|
+        results[convert_to_snake(key).to_sym] = value.value
+        results
+      end
+      ::OData::EntityType.new(options)
+    end
+
+    def convert_to_snake(field)
+      field.slice(0,1).downcase + field.slice(1..-1).gsub(/([A-Z])/, '_\1').downcase
     end
 
     def build_association(association_definition)
